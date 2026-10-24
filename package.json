@@ -1,0 +1,55 @@
+{
+  "name": "llm-tape",
+  "version": "0.1.0",
+  "description": "Record and replay LLM API calls in tests, like VCR but built for model APIs. Zero dependencies.",
+  "license": "MIT",
+  "author": "acus9345 <acus9345@gmail.com>",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test \"test/**/*.test.js\"",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acus9345/llm-tape.git"
+  },
+  "homepage": "https://github.com/acus9345/llm-tape#readme",
+  "bugs": {
+    "url": "https://github.com/acus9345/llm-tape/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^6.0.3"
+  },
+  "keywords": [
+    "llm",
+    "vcr",
+    "cassette",
+    "record",
+    "replay",
+    "testing",
+    "openai",
+    "anthropic",
+    "gemini",
+    "fixtures",
+    "mock"
+  ]
+}
