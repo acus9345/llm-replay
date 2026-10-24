@@ -8,7 +8,7 @@ import { tapeFetch, withTape, installTape } from "../dist/index.js";
 const URL_ = "https://api.example.com/v1/messages";
 
 function tempDir() {
-  return mkdtempSync(join(tmpdir(), "llm-tape-"));
+  return mkdtempSync(join(tmpdir(), "llm-replay-"));
 }
 
 function fakeFetch(makeResponse = () => Response.json({ text: "hi there" })) {
@@ -42,7 +42,7 @@ function sseResponse(events, gapMs = 0) {
 }
 
 beforeEach(() => {
-  delete process.env.LLM_TAPE;
+  delete process.env.LLM_REPLAY;
   delete process.env.RECORD;
   delete process.env.CI;
 });
@@ -56,7 +56,7 @@ test("records on the first call and replays after that", async () => {
   assert.equal(real.calls.length, 1);
   assert.deepEqual(await first.json(), { text: "hi there" });
   assert.deepEqual(await second.json(), { text: "hi there" });
-  assert.equal(second.headers.get("x-llm-tape"), "replay");
+  assert.equal(second.headers.get("x-llm-replay"), "replay");
   assert.equal(readdirSync(dir).length, 1);
 });
 
@@ -85,10 +85,10 @@ test("replay mode fails with a message that shows what changed", async () => {
     assert.equal(res.status, 400);
     assert.equal(res.headers.get("x-should-retry"), "false");
     const { error } = await res.json();
-    assert.equal(error.type, "llm_tape_no_recording");
+    assert.equal(error.type, "llm_replay_no_recording");
     assert.match(error.message, /no recording for POST/);
     assert.match(error.message, /messages\[0\]\.content: "Hi" -> "Hello"/);
-    assert.match(error.message, /LLM_TAPE=record/);
+    assert.match(error.message, /LLM_REPLAY=record/);
   } finally {
     console.error = original;
   }
@@ -210,7 +210,7 @@ test("installTape patches and restores globalThis.fetch", async () => {
   assert.equal(globalThis.fetch, original);
 });
 
-test("an invalid LLM_TAPE value is rejected", () => {
-  process.env.LLM_TAPE = "sometimes";
-  assert.throws(() => tapeFetch(tempDir()), /LLM_TAPE must be/);
+test("an invalid LLM_REPLAY value is rejected", () => {
+  process.env.LLM_REPLAY = "sometimes";
+  assert.throws(() => tapeFetch(tempDir()), /LLM_REPLAY must be/);
 });

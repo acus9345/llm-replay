@@ -1,4 +1,4 @@
-# llm-tape
+# llm-replay
 
 Record and replay LLM API calls in tests, like VCR but built for model APIs. Zero dependencies.
 
@@ -11,7 +11,7 @@ Works with the OpenAI, Anthropic and Gemini SDKs, or anything that uses `fetch`.
 ## Install
 
 ```sh
-npm install --save-dev llm-tape
+npm install --save-dev llm-replay
 ```
 
 Node 22 or newer.
@@ -20,7 +20,7 @@ Node 22 or newer.
 
 ```js
 import Anthropic from "@anthropic-ai/sdk";
-import { withTape } from "llm-tape";
+import { withTape } from "llm-replay";
 
 const client = withTape(new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "replay" }), "tests/cassettes");
 
@@ -37,7 +37,7 @@ Commit the `tests/cassettes` folder. In CI the recordings replay and no key is n
 
 ```js
 import OpenAI from "openai";
-import { withTape } from "llm-tape";
+import { withTape } from "llm-replay";
 
 const client = withTape(new OpenAI({ apiKey: process.env.OPENAI_API_KEY ?? "replay" }), "tests/cassettes");
 ```
@@ -47,7 +47,7 @@ const client = withTape(new OpenAI({ apiKey: process.env.OPENAI_API_KEY ?? "repl
 `@google/genai` uses the global `fetch`, so patch that for the duration of your tests:
 
 ```js
-import { installTape } from "llm-tape";
+import { installTape } from "llm-replay";
 
 const restore = installTape("tests/cassettes");
 // ... run tests ...
@@ -57,7 +57,7 @@ restore();
 Or hand a tape to any client that takes a `fetch` option, or call it directly:
 
 ```js
-import { tapeFetch } from "llm-tape";
+import { tapeFetch } from "llm-replay";
 
 const fetch = tapeFetch("tests/cassettes");
 const client = new OpenAI({ fetch });
@@ -72,7 +72,7 @@ const client = new OpenAI({ fetch });
 | `record` | Always call the API and overwrite the recording. |
 | `passthrough` | Call the API and save nothing. |
 
-Set the mode with the `mode` option, or the `LLM_TAPE` environment variable. `RECORD=1` is a shortcut for `LLM_TAPE=record`:
+Set the mode with the `mode` option, or the `LLM_REPLAY` environment variable. `RECORD=1` is a shortcut for `LLM_REPLAY=record`:
 
 ```sh
 RECORD=1 npm test
@@ -83,17 +83,17 @@ RECORD=1 npm test
 Requests are keyed by a hash of the method, URL and JSON body (key order ignored, headers ignored). If you change a prompt, the request has no recording, and in replay mode the call fails with:
 
 ```text
-llm-tape: no recording for POST https://api.anthropic.com/v1/messages (key 47787088e78b2a6f) in tests/cassettes.
+llm-replay: no recording for POST https://api.anthropic.com/v1/messages (key 47787088e78b2a6f) in tests/cassettes.
 Closest recording: api_anthropic_com_v1_messages-7c1d0e9a3b2f4a61.json. The request changed at:
   messages[0].content: "Say hi" -> "Say hello"
-To record it, run once with LLM_TAPE=record (or RECORD=1) and a real API key.
+To record it, run once with LLM_REPLAY=record (or RECORD=1) and a real API key.
 ```
 
 The failure comes back as a `400` response (with `x-should-retry: false`), so the SDKs raise it as a normal API error straight away instead of retrying a "connection error". The message is also printed to stderr.
 
 ## Secrets
 
-Request headers are never saved, so API keys sent in headers never reach disk. On top of that, llm-tape strips these from saved files and from the request key:
+Request headers are never saved, so API keys sent in headers never reach disk. On top of that, llm-replay strips these from saved files and from the request key:
 
 - `key`, `api_key`, `access_token` and `token` query parameters (Gemini's `?key=`)
 - strings that look like keys: `sk-...`, `sk-ant-...`, `AIza...`, `Bearer ...`
@@ -134,8 +134,8 @@ Streamed responses store `chunks: [{ "delay": 312, "text": "data: ...\n\n" }]` i
 ## Build from source
 
 ```sh
-git clone https://github.com/acus9345/llm-tape.git
-cd llm-tape
+git clone https://github.com/acus9345/llm-replay.git
+cd llm-replay
 npm install
 npm test
 ```

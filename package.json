@@ -1,5 +1,5 @@
 {
-  "name": "llm-tape",
+  "name": "llm-replay",
   "version": "0.1.0",
   "description": "Record and replay LLM API calls in tests, like VCR but built for model APIs. Zero dependencies.",
   "license": "MIT",
@@ -29,11 +29,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/acus9345/llm-tape.git"
+    "url": "git+https://github.com/acus9345/llm-replay.git"
   },
-  "homepage": "https://github.com/acus9345/llm-tape#readme",
+  "homepage": "https://github.com/acus9345/llm-replay#readme",
   "bugs": {
-    "url": "https://github.com/acus9345/llm-tape/issues"
+    "url": "https://github.com/acus9345/llm-replay/issues"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

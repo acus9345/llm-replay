@@ -13,7 +13,7 @@ export type TapeMode = "auto" | "record" | "replay" | "passthrough";
 export interface TapeOptions {
   /** Folder that holds the recordings, e.g. "tests/cassettes". */
   dir: string;
-  /** Defaults to LLM_TAPE, then `record` if RECORD=1, then `replay` on CI, else `auto`. */
+  /** Defaults to LLM_REPLAY, then `record` if RECORD=1, then `replay` on CI, else `auto`. */
   mode?: TapeMode;
   /** The fetch that makes real calls. Defaults to globalThis.fetch. */
   fetch?: typeof fetch;
@@ -151,9 +151,9 @@ export function installTape(options: TapeOptions | string): () => void {
 
 function resolveMode(mode: TapeMode | undefined): TapeMode {
   if (mode) return mode;
-  const env = process.env.LLM_TAPE?.toLowerCase();
+  const env = process.env.LLM_REPLAY?.toLowerCase();
   if (env === "auto" || env === "record" || env === "replay" || env === "passthrough") return env;
-  if (env) throw new TypeError(`LLM_TAPE must be auto, record, replay or passthrough, got "${env}".`);
+  if (env) throw new TypeError(`LLM_REPLAY must be auto, record, replay or passthrough, got "${env}".`);
   if (process.env.RECORD === "1" || process.env.RECORD === "true") return "record";
   if (process.env.CI && process.env.CI !== "false") return "replay";
   return "auto";
@@ -263,7 +263,7 @@ function recordStream(res: Response, started: number, save: (chunks: Chunk[]) =>
 
 function replay(recording: Recording, timing: "instant" | "realistic"): Response {
   const { status, statusText, headers, body, text, chunks } = recording.response;
-  const init = { status, statusText, headers: { ...headers, "x-llm-tape": "replay" } };
+  const init = { status, statusText, headers: { ...headers, "x-llm-replay": "replay" } };
   if (nullBodyStatus(status)) return new Response(null, init);
   if (!chunks) return new Response(text ?? JSON.stringify(body), init);
 
@@ -285,20 +285,20 @@ function replay(recording: Recording, timing: "instant" | "realistic"): Response
  * so SDKs surface the message in their error instead of retrying a "connection error".
  */
 function missing(dir: string, method: string, url: string, body: unknown, key: string): Response {
-  const lines = [`llm-tape: no recording for ${method} ${url} (key ${key}) in ${dir}.`];
+  const lines = [`llm-replay: no recording for ${method} ${url} (key ${key}) in ${dir}.`];
   const closest = closestRecording(dir, method, url, body);
   if (closest) {
     lines.push(`Closest recording: ${closest.file}. The request changed at:`, ...closest.diffs.map((d) => `  ${d}`));
   } else {
     lines.push("There are no recordings for this endpoint yet.");
   }
-  lines.push("To record it, run once with LLM_TAPE=record (or RECORD=1) and a real API key.");
+  lines.push("To record it, run once with LLM_REPLAY=record (or RECORD=1) and a real API key.");
   const message = lines.join("\n");
   console.error(message);
-  return new Response(JSON.stringify({ type: "error", error: { type: "llm_tape_no_recording", message } }), {
+  return new Response(JSON.stringify({ type: "error", error: { type: "llm_replay_no_recording", message } }), {
     status: 400,
     statusText: "No Recording",
-    headers: { "content-type": "application/json", "x-should-retry": "false", "x-llm-tape": "missing" },
+    headers: { "content-type": "application/json", "x-should-retry": "false", "x-llm-replay": "missing" },
   });
 }
 
