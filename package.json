@@ -36,8 +36,8 @@
     "url": "https://github.com/acus9345/llm-replay/issues"
   },
   "devDependencies": {
-    "@types/node": "^22.20.5",
-    "typescript": "^6.0.3"
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
   },
   "keywords": [
     "llm",
