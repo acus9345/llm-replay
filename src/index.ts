@@ -85,8 +85,11 @@ export function tapeFetch(options: TapeOptions | string): typeof fetch {
     }
 
     const started = performance.now();
-    // A stream body can only be read once, and the Request above already owns it.
-    const res = init?.body instanceof ReadableStream ? await realFetch(request) : await realFetch(input, init);
+    // A Request or stream body can only be read once, and the Request above already owns it.
+    const res =
+      input instanceof Request || init?.body instanceof ReadableStream
+        ? await realFetch(request)
+        : await realFetch(input, init);
     if (!res.ok && !opts.recordErrors) return res;
 
     const save = (response: Partial<Recording["response"]>) => {
@@ -150,26 +153,29 @@ export function installTape(options: TapeOptions | string): () => void {
 }
 
 function resolveMode(mode: TapeMode | undefined): TapeMode {
-  if (mode) return mode;
+  if (mode !== undefined) {
+    if (mode === "auto" || mode === "record" || mode === "replay" || mode === "passthrough") return mode;
+    throw new TypeError(`mode must be auto, record, replay or passthrough, got "${String(mode)}".`);
+  }
   const env = process.env.LLM_REPLAY?.toLowerCase();
   if (env === "auto" || env === "record" || env === "replay" || env === "passthrough") return env;
   if (env) throw new TypeError(`LLM_REPLAY must be auto, record, replay or passthrough, got "${env}".`);
   if (process.env.RECORD === "1" || process.env.RECORD === "true") return "record";
-  if (process.env.CI && process.env.CI !== "false") return "replay";
+  if (process.env.CI && process.env.CI.toLowerCase() !== "false" && process.env.CI !== "0") return "replay";
   return "auto";
 }
 
 function makeRedactor(extra: (string | RegExp)[]): (text: string) => string {
   const literals = [
-    ...extra.filter((s): s is string => typeof s === "string"),
+    ...extra.filter((s): s is string => typeof s === "string" && s.length > 0),
     ...SECRET_ENV.map((name) => process.env[name]).filter((v): v is string => !!v && v.length >= 8),
   ];
-  const patterns = [...SECRET_PATTERNS, ...extra.filter((s): s is RegExp => s instanceof RegExp)];
+  const patterns = [...SECRET_PATTERNS, ...extra.filter((s): s is RegExp => s instanceof RegExp)].map(
+    (p) => new RegExp(p.source, p.flags.includes("g") ? p.flags : p.flags + "g"),
+  );
   return (text) => {
     for (const literal of literals) text = text.split(literal).join(REDACTED);
-    for (const pattern of patterns) {
-      text = text.replace(new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g"), REDACTED);
-    }
+    for (const pattern of patterns) text = text.replace(pattern, REDACTED);
     return text;
   };
 }
@@ -305,7 +311,7 @@ function missing(dir: string, method: string, url: string, body: unknown, key: s
 function closestRecording(dir: string, method: string, url: string, body: unknown) {
   if (!existsSync(dir)) return undefined;
   let best: { file: string; diffs: string[] } | undefined;
-  for (const file of readdirSync(dir)) {
+  for (const file of readdirSync(dir).sort()) {
     if (!file.endsWith(".json")) continue;
     let recording: Recording;
     try {

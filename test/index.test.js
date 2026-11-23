@@ -214,3 +214,79 @@ test("an invalid LLM_REPLAY value is rejected", () => {
   process.env.LLM_REPLAY = "sometimes";
   assert.throws(() => tapeFetch(tempDir()), /LLM_REPLAY must be/);
 });
+
+test("Request inputs with a body are forwarded without disturbing the body", async () => {
+  const dir = tempDir();
+  const real = fakeFetch(async (input) => {
+    assert.ok(input instanceof Request);
+    assert.equal(input.bodyUsed, false);
+    const body = await input.json();
+    return Response.json({ echo: body.prompt });
+  });
+  const tape = tapeFetch({ dir, fetch: real });
+
+  const makeReq = () =>
+    new Request(URL_, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "from-request" }),
+    });
+
+  const first = await tape(makeReq());
+  const second = await tape(makeReq());
+  assert.equal(real.calls.length, 1);
+  assert.deepEqual(await first.json(), { echo: "from-request" });
+  assert.deepEqual(await second.json(), { echo: "from-request" });
+  assert.equal(second.headers.get("x-llm-replay"), "replay");
+});
+
+test("empty strings in redact are ignored", async () => {
+  const dir = tempDir();
+  const real = fakeFetch(() => Response.json({ text: "hello" }));
+  const tape = tapeFetch({ dir, fetch: real, redact: ["", /secret-[0-9]+/] });
+  const res = await post(tape, { prompt: "secret-42" });
+  assert.deepEqual(await res.json(), { text: "hello" });
+
+  const saved = JSON.parse(readFileSync(join(dir, readdirSync(dir)[0]), "utf8"));
+  assert.equal(saved.request.url, URL_);
+  assert.deepEqual(saved.request.body, { prompt: "[REDACTED]" });
+  assert.deepEqual(saved.response.body, { text: "hello" });
+});
+
+test("invalid mode option is rejected", () => {
+  assert.throws(() => tapeFetch({ dir: tempDir(), mode: "repley" }), /mode must be/);
+});
+
+test("CI=0 and CI=false do not force replay mode", async () => {
+  for (const value of ["0", "false", "FALSE"]) {
+    process.env.CI = value;
+    const real = fakeFetch();
+    const res = await post(tapeFetch({ dir: tempDir(), fetch: real }), { prompt: value });
+    assert.equal(res.status, 200);
+    assert.equal(real.calls.length, 1);
+  }
+});
+
+test("passthrough mode calls fetch without saving recordings", async () => {
+  const dir = tempDir();
+  const real = fakeFetch();
+  const tape = tapeFetch({ dir, mode: "passthrough", fetch: real });
+  await post(tape, { prompt: "a" });
+  await post(tape, { prompt: "a" });
+  assert.equal(real.calls.length, 2);
+  assert.equal(readdirSync(dir).length, 0);
+});
+
+test("204 No Content responses record and replay cleanly", async () => {
+  const dir = tempDir();
+  const real = fakeFetch(() => new Response(null, { status: 204 }));
+  const tape = tapeFetch({ dir, fetch: real });
+
+  const first = await tape(URL_, { method: "DELETE" });
+  const second = await tape(URL_, { method: "DELETE" });
+  assert.equal(real.calls.length, 1);
+  assert.equal(first.status, 204);
+  assert.equal(second.status, 204);
+  assert.equal(second.headers.get("x-llm-replay"), "replay");
+  assert.equal(await second.text(), "");
+});
